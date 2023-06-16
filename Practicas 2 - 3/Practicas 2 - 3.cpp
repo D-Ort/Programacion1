@@ -1,8 +1,9 @@
 
 /* **********************************************************************************************************************
-NOMBRE DEL PROYECTO: Práctica 2
+NOMBRE DEL PROYECTO: Práctica 2 implementada como Práctica 3
 
 OBJETIVO:			 Práctica 2: Desarrollar el juego "Cuatro en línea".
+					 Práctica 3: Implementar el guardado de datos de la partida.
 
 AUTOR: 				 MARIO FERNANDEZ FERNANDEZ & DAVID ORTEGA LOZANO
 
@@ -21,6 +22,7 @@ FECHA DE CREACIÓN:	 08/11/2022
 	using namespace std;								//Espacio de nombres estándar
 #include <windows.h>									//Biblioteca de herramientas de consola de windows
 #include <string>										//Biblioteca de funciones de texto
+#include <fstream>										//Biblioteca de entrada y salida de flujos a archivos externos
 
 
 //-----------------------------------------------------------------------------------------------------------------------
@@ -102,12 +104,46 @@ typedef struct {										//Definición del tipo de dato "Tablero" que cuenta co
 	Casilla casillas[(N_COLUM + 1)][(N_FILAS + 1)];		//número columnas y filas.
 } Tablero;
 
+typedef struct {										//Definición del tipo de dato "Jugador" que cuenta con el nombre,
+	string ID;											//el número de partidas ganadas y el número de partidas perdidas.
+	int pGanadas;
+	int pPerdidas;
+} Player;
+
+/*He decidido llamarlo "Player" porque ya empleo variables auxiliares con el nobre de "j" y así el tipo de dato y el
+nombre de la variable siguen guardando relación.*/
+
+typedef struct {										//Definición del tipo de dato "DatosPartida" que se compone por:
+	Player lista[MAX_J];								//la lista de jugadores registrados de tipo "Player", el nº de 
+	int nJugadores;										//jugadores registrados y la posición de los jugadores que están 
+	int j1;												//jugando.
+	int j2;
+} DatosPartida;
+
+/*Para almacenar la posición de los 2 jugadores durante toda la partida, he decidido que se guarden como un dato más de
+la variable datos partida, ya que su posición es más útil que sus IDs, ya que me ahorro tener que estar implementando la
+función "buscaJugador".*/
+
 
 //-----------------------------------------------------------------------------------------------------------------------
 //INICIALIZACIÓN DE FUNCIONES:
 
 //Procedimiento que inicializa la "matriz", el "contador" y las "casillas" de la variable t de tipo Tablero.
 void inicializaTablero(Tablero& t);
+//Función que carga los datos de los jugadores.
+bool cargaDatos(DatosPartida& d);
+//Función que solicita el registro del jugador y lo crea en caso de que no exista.
+bool iniciarSesion(DatosPartida& d);
+//Función que muestra la lista de opciones.
+int menu();
+//Función que busca al jugador en la lista.
+int buscaJugador(DatosPartida d, string nick);
+//Función que añade un nuevo jugador dando mensaje de error si no cabe.
+bool guardarJugadorNuevo(DatosPartida& d, Player p);
+//Procedimiento que muestra la información del jugador con el nick especificado.
+void muestraInfo(DatosPartida d, int jugador);
+//Procedimiento que muestra la información de todos los jugadores.
+void infoJugadores(DatosPartida d);
 //Procedimiento que lleva a cabo la ejecución del programa.
 void juegoConecta4 (Tablero& t);
 //Procedimiento que muestra en consola la "matriz" de la variable "t" de tipo "Tablero".
@@ -122,8 +158,12 @@ void muestraCharColor(Casilla c);
 int	 ponerFicha(const Tablero t, int columna);
 //Función que comprueba si el último jugador en colocar ficha ha ganado por recursividad.
 bool ganador(const Tablero t, int fila, int columna, int x, int y, int direccion, int puntos);
+//Procedimiento que actualiza la lista de jugadores.
+void actualizaJugador(DatosPartida& d, int jugador);
 //Procedimiento que imprime mensajes en la matriz caracter a caracter.
 void printEnPantalla(int finMensaje, Tablero& t, int inicioMensaje, string mensaje, int linea);
+//Procedimiento que guarda los datos de todos los jugadores registrados en el archivo "jugadores.txt".
+void guardaDatos(DatosPartida d);
 
 
 /*_______________________________________________________________________________________________________________________
@@ -133,23 +173,71 @@ int main() {
 
 	//VARIABLES LOCALES:
 	Tablero t;											//Se inicia la variable "t" de tipo "Tablero".
+	DatosPartida d;										//Se inicia la variable "d" de tipo "DatosPartida".
 	int opcion;											//Variable que recoge la opción seleccionada en el menú.
 	string nombre;										//Variable que recoge el nombre del que se busca información.
 	int posicion;										//Variable que recoge la posición en el array del jugador.
 	bool continuar;										//Variable auxiliar de comprobación para salir de bucles.
 
 
-	do {
-		continuar = true;								//Se inicializa la variable continuar a true como salto de fe.
+	if (cargaDatos(d)) {								//Se cargan los datos y en caso de que no se pueda abrir el 
+														//archivo se termina el programa.
 
-		//Para jugar se dispone el tablero, se limpia la consola y se inicia el juego.
+		if (iniciarSesion(d)) {							//Se inicia sesión y en caso de que la lista esté llena y se 
+														//quiera salir se pone fin al programa.
+			do {
+				continuar = true;						//Se inicializa la variable continuar a true como salto de fe.
 
-			inicializaTablero(t);						//Se rellena la matriz que se imprime como tablero.
-			system("CLS");								//Se borra todo lo que haya en consola.
-			juegoConecta4(t);							//Se desarrolla el juego.
-			break;
+				opcion = menu();						//Se recoge la opción seleccionada en el menú.
+				switch (opcion) {
+				case 0:									//Si se quiere salir se procede a guardar datos.
 
-	} while (!continuar);
+					break;
+
+				case 1:									//Para jugar se dispone el tablero, se limpia la consola y se 
+														//inicia el juego.
+
+					inicializaTablero(t);				//Se rellena la matriz que se imprime como tablero.
+					system("CLS");						//Se borra todo lo que haya en consola.
+					juegoConecta4(t);					//Se desarrolla el juego.
+					break;
+
+				case 2:									//Para mostrar la información de los jugadores activos, se 
+														//presentan y se busca su información con las posiciones 
+														//guardadas en los datos de la partida.
+
+					cout << endl << " Información del jugador 1:" << endl;
+					muestraInfo(d, d.j1);
+					cout << endl << " Información del jugador 2:" << endl;
+					muestraInfo(d, d.j2);
+					break;
+
+				case 3:									//Para mostrar los datos de todos los jugadores, se accede a la
+														//función que muestra su información.
+
+					infoJugadores(d);
+					break;
+
+				case 4:									//Para buscar información sobre un jugador concreto, se solicita 
+														//su nombre, se busca si existe y su posición, en caso de que 
+														//exista se muestra su información y en caso contrario se muestra 
+														//un mensaje de error y se vuelve a mostrar el menú.
+
+					cout << " Introduce el ID del jugador que quieres buscar:" << endl;
+					cin >> nombre;
+					if (posicion = buscaJugador(d, nombre), posicion != -1) {
+
+						muestraInfo(d, posicion);
+					}
+					else {
+						cout << endl << " Error, Jugador no registrado" << endl << endl;
+						continuar = false;
+					}
+				}
+			} while (!continuar);
+		}
+	}
+	guardaDatos(d);
 	
 	return 0;											//Se devuelve "0" para comprobar que todo ha ido bien.
 }
@@ -215,6 +303,193 @@ void inicializaTablero(Tablero& t) {
 }
 
 //-----------------------------------------------------------------------------------------------------------------------
+//Función que carga los datos de los jugadores y devuelve si se ha abierto el archivo:
+
+bool cargaDatos(DatosPartida& d) {
+	/*He decidido hacer esta función de tipo bool para que me devuelva si se ha abierto el archivo o no y así poder poner
+	fin al juego.*/
+
+	//VARIABLES LOCALES:
+	Player p;											//Se inicia una variable "p" de tipo "Jugador" en la que guardo 
+														//los datos registrados temporalmente.
+	int i = 0;											//Contador del número de jugadores registrados.
+	bool abierto = true;								//Variable bool que recoge lo que devuelve la función.
+
+
+	ifstream dJ;										//Selecciono la función de lectura del archivo datos del Jugador 
+	dJ.open("jugadores.txt");							//e intento abrir el archivo.
+
+	if (dJ.is_open()) {									//Si el archivo se ha abierto, entonces guardo sus datos en la 
+														//variable "d".
+
+														//(Sé que no te gusta, pero me ahorra bastante código y una 
+		while (dJ >> p.ID, p.ID != "***" && i < MAX_J) {//variable bool de comprobación).
+
+			dJ >> p.pGanadas >> p.pPerdidas;			//Guardo los datos de cada jugador en "p" para después copiarla  
+			d.lista[i] = p;								//en su corespondiente posición del array de "d".
+			i++;
+		}
+		d.nJugadores = i;								//Sumo 1 al contador y lo copio como el número de jugadores 
+														//registrados.
+
+		dJ.close();										//Solo en caso de que se haya abierto el archivo lo cierro.
+	}
+	else {												//Si el archivo no llega a abrirse devuelvo false y envío un 
+		abierto = false;								//mensaje de error a consola.
+		cout << " A habido un problema al abrir el archivo" << endl;
+	}
+
+	return abierto;										//Devuelvo la variable bool "abierto".
+}
+
+//-----------------------------------------------------------------------------------------------------------------------
+//Función que solicita el registro del jugador y lo crea en caso de que no exista:
+
+bool iniciarSesion(DatosPartida& d) {
+	/*Esta función nos decías que devolviera un dato de tipo "Player", pero como tienen que iniciar sesión dos jugadores,
+	he pensado que sería más útil guardar su posición dentro del array en el dato de tipo "DatosPartida", y así me evito
+	tener que poner más referencias en el resto de funciones. Además, para el caso de que se intente guardar un jugador
+	con la lista llena, y después se trate de salir, se puede indicar devolviendo false.
+
+	También habías puesto referencia al nick en esta función, pero creo que queda más ordenado que se solicite el nick
+	dentro.*/
+
+	//VARIABLES LOCALES:
+	Player p;											//Variable auxiliar que recoge los datos del nuevo jugador o el 
+														//ID de jugadores ya existentes.
+	int opcion;											//Variable que recoge como proseguir en caso de error.
+	bool continuar;										//Variable auxiliar que dicta la salida del bucle.
+	bool todoHaIdoBien = true;							//Variable auxiliar que se devuelve al final de la función.
+	int posicion;										//Variable que recoge la posición de los jugadores en el array.
+
+	
+	for (int i = 1; i <= 2; i++) {	 					//Se repite el bucle dos veces para registrar a ambos jugadores.
+
+		do {											//Se solicita el Id del jugador y se le da la bienvenida.
+			opcion = 0;
+			cout << endl << " Buenos días jugador " << i << ", por favor, introduce tu nombre sin espacios" << endl;
+			cin >> p.ID;
+			cout << " Bienvenido " << p.ID << endl;
+														//Se comprueba si el jugador ya está registrado.
+			if (posicion = buscaJugador(d, p.ID), posicion == -1) {
+				p.pGanadas = 0;							//En caso de que no, se inicializa el número de partidas ganadas 
+				p.pPerdidas = 0;						//y perdidas para registrarlo.
+
+				if (!guardarJugadorNuevo(d, p)) {		//Si la lista ya está llena, se anuncia y se le da la opción de 
+														//probar con otro nombre o de salir.
+					cout << " No estás registrado y no hemos podido registrarte por falta de espacio." << endl;
+					cout << " Indica que quieres hacer a continuación:" << endl << endl;
+					cout << " 1. Salir" << endl;
+					cout << " 2. Introducir otro nombre" << endl;
+
+					do {								//Antes de continuar, se comprueba que la opción introducida esté
+						continuar = true;				//entre los valores posibles, en caso contrario, se muestra 
+						cin >> opcion;					//mensaje de error y se solicita de nuevo.
+						if (opcion != 1 && opcion != 2) {
+							cout << " Opcion no valida, introduce una de las dos opciones:" << endl;
+							continuar = false;
+						}
+					} while (!continuar);
+
+					if (opcion == 1) {					//En caso de que se desee salir, se devolverá "false" y se le da 
+						todoHaIdoBien = false;			//un valor a "i" para salir del bucle.
+						i = 3;
+					}
+				}										//Si todo ha ido bien se anuncia en pantalla que el nuevo jugador 
+				else {									//ya ha sido registrado.
+					cout << " Te has registrado correctamente" << endl << endl;
+					posicion = (d.nJugadores - 1);		//La posición del jugador será 1 menos que el nº de jugadores
+				}										//registrados.
+			}
+			else {										//Si el jugador ya se había registrado se le da la bienvenida.
+				cout << " Cuanto tiempo, buena suerte" << endl << endl;
+			}											//En caso de que el jugador quiera probar con otro ID ya que la
+		} while (opcion == 2);							//lista estaba llena, se repite la solicitud.
+
+		if (i == 1) {									//Se guarda la posición de ambos jugadores en el dato 
+			d.j1 = posicion;							//estruccturado "DatosPartida".
+			cout << " Turno del jugador 2" << endl;
+		}
+		else if (i == 2)
+			d.j2 = posicion;
+	}
+
+	return todoHaIdoBien;								//Se devuelve si todo ha ido bien o si se quiere salir.
+}
+
+//-----------------------------------------------------------------------------------------------------------------------
+//Función que muestra la lista de opciones:
+
+int menu() {
+	/*He decidido hacer esta función para hacer más ordenado el código*/
+
+	//VARIABLES LOCALES:
+	int opcion;											//Variable auxilar que recoge la opción que devuelve la función.
+	bool continuar = true;								//Variable auxiliar que dicta la salida del bucle.
+
+														//Se muestran las opciones del menú.
+	cout << " Seleccione una de las siguientes opciones: " << endl;
+	cout << " 0. Salir" << endl;
+	cout << " 1. Jugar" << endl;
+	cout << " 2. Ver mi información" << endl;
+	cout << " 3. Ver información de los jugadores" << endl;
+	cout << " 4. Buscar información de un jugador" << endl;
+
+	do {
+		continuar = true;								//Se da un salto de fe y se dice que se va a continuar.
+
+		cin >> opcion;									//Se solicita la opción seleccionada.
+
+		if (opcion < 0 || opcion > 4) {					//Se comprueba que la opción es valida y en caso de que no lo sea
+			continuar = false;							//se niega continuar y se envía mensaje de error solicitandolo de 
+														//nuevo.
+			cout << " La opción introducida no es posible, seleccione otra opción:" << endl;
+		}
+	} while (!continuar);
+	return opcion;
+}
+
+//-----------------------------------------------------------------------------------------------------------------------
+//Función que busca al jugador en la lista:
+
+int buscaJugador(DatosPartida d, string nick) {
+
+	//VARIABLE LOCALES:
+	int linea = -1;										//Variable auxiliar que guarda el valor que devuelve la función
+														//inicializada a -1 para el caso de que no encuentre el jugador.
+
+	if (d.nJugadores != 0) {
+		for (int i = 0; i < d.nJugadores; i++) {		//Se recorre toda la lista de jugadores registrados buscando 
+			if (d.lista[i].ID == nick) {				//alguno que coincida con el que se busca, en cuyo caso se 
+				linea = i;								//devuelve su posición y se establece un valor a "i" para 
+				i = d.nJugadores;						//salir del bucle.
+			}
+		}
+	}
+	return linea;										//Se devuelve el valor de la variable "linea".
+}
+
+//-----------------------------------------------------------------------------------------------------------------------
+//Función que añade un nuevo jugador dando mensaje de error si no cabe:
+
+bool guardarJugadorNuevo(DatosPartida& d, Player p) {
+
+	//VARIABLES LOCALES:
+	bool hayHueco = true;								//Variable auxiliar que recoge lo que devuelve la función.
+
+	if (d.nJugadores < 20) {							//Se Comprueba que la lista no esté llena.
+
+		d.lista[d.nJugadores] = p;						//Se guarda el nuevo jugador tras el último jugador registrado y
+		d.nJugadores++;									//se le suma 1 al numero de jugadores registrados.
+	}
+	else {												//En caso de que no haya hueco, se devuelve false y se envía un 
+		hayHueco = false;								//mensaje de error.
+		cout << " ERROR, lista de jugadores llena" << endl;
+	}
+	return hayHueco;									//Se devuelve si a habido hueco para guardar al nuevo jugador.
+}
+
+//-----------------------------------------------------------------------------------------------------------------------
 //Procedimiento que imprime mensajes en la matriz caracter a caracter:
 
 void printEnPantalla(int finMensaje, Tablero& t, int inicioMensaje, string mensaje, int linea) {
@@ -229,9 +504,34 @@ void printEnPantalla(int finMensaje, Tablero& t, int inicioMensaje, string mensa
 }
 
 //-----------------------------------------------------------------------------------------------------------------------
+//Procedimiento que muestra la información del jugador con el nick especificado:
+
+void muestraInfo(DatosPartida d, int jugador) {
+	/*Ya se ha buscado la posición a la que pertenecen los ID de los jugadores, me parece más eficiente trabajar con esos
+	datos antes que con sus nombres y así ahorrarme tener que buscarlos de nuevo. Además, de este modo hago que la
+	función sea más versatil y valga para las tres opciones que buscan información en el registro.*/
+
+
+	cout << "     ID: " << d.lista[jugador].ID << endl;	//Se muestra el ID y el nº de partidas ganadas y perdidas.
+	cout << "     Nº de partidas ganadas: " << d.lista[jugador].pGanadas << endl;
+	cout << "     Nº de partidas perdidas: " << d.lista[jugador].pPerdidas << endl;
+}
+
+//-----------------------------------------------------------------------------------------------------------------------
+//Procedimiento que muestra la información de todos los jugadores:
+
+void infoJugadores(DatosPartida d) {
+
+	for (int i = 0; i < d.nJugadores; i++) {			//Se recorre el registro de jugadores, mostrando su información.
+		cout << endl << " Información de jugador nº " << i + 1 << ":" << endl;
+		muestraInfo(d, i);
+	}
+}
+
+//-----------------------------------------------------------------------------------------------------------------------
 //Procedimiento que lleva a cabo la ejecución del programa:
 
-void juegoConecta4(Tablero& t) {
+void juegoConecta4(DatosPartida& d, Tablero& t) {
 
 	/*He decidido cambiar el parametro "t" de tipo "Tablero" a una referencia variable en vez de una constante ya que el
 	código se desarroya por coordenadas.*/
@@ -297,6 +597,8 @@ void juegoConecta4(Tablero& t) {
 														//anuncio en la consola y se niega continuar.
 				printEnPantalla(esp, t, inMensaje, ganado1, 0);
 				printEnPantalla(esp, t, inMensaje, ganado2, MAX_V - 1);
+
+				actualizaJugador(d, jTurno);			//Se actualiza la lista de jugadores
 
 														
 				if (jTurno == 1)						//Para anunciar el ganador, se comprueba quien fue el último
@@ -462,6 +764,24 @@ bool ganador(const Tablero t, int fila, int columna, int x, int y, int direccion
 }
 
 //-----------------------------------------------------------------------------------------------------------------------
+//Procedimiento que actualiza la lista de jugadores:
+
+void actualizaJugador(DatosPartida& d, int jugador) {
+	/*Al igual que con otras funciones, me parece más eficiente guardar solo la posición en el array de los jugadores por
+	lo que la referencia del turno es suficiente para identificarles, ya que su posición está guardada en los datos de la
+	partida.*/
+
+	if (jugador == 1) {									//En el caso de que gane el jugador 1, se le suma 1 a partidas 
+		d.lista[d.j1].pGanadas++;						//ganadas y a jugador 2 se le suma 1 a partidas perdidas.
+		d.lista[d.j2].pPerdidas++;
+	}
+	else if (jugador == -1) {							//En caso contrario, se hace lo inverso.
+		d.lista[d.j2].pGanadas++;
+		d.lista[d.j1].pPerdidas++;
+	}
+}
+
+//-----------------------------------------------------------------------------------------------------------------------
 //Procedimiento que coloca la ficha del color correspondiente en la casilla seleccionada:
 
 void muestraCharColor(Casilla c) {
@@ -472,4 +792,22 @@ void muestraCharColor(Casilla c) {
 		SetConsoleTextAttribute(hConsole, 6);			//Si la ficha es del jugador 1, se imprime de color amarillo.
 	else if (c == Casilla(2))
 		SetConsoleTextAttribute(hConsole, 4);			//Si la ficha es del jugador 2, se imprime de color rojo.
+}
+
+//-----------------------------------------------------------------------------------------------------------------------
+//Procedimiento que guarda los datos de todos los jugadores registrados en el archivo "jugadores.txt":
+
+void guardaDatos(DatosPartida d) {
+
+	ofstream dJ;										//Se selecciona la función de lectura del archivo datos del 
+	dJ.open("jugadores.txt");							//Jugador y se abre el archivo.
+
+														//Se guardan todos los datos de cada jugador en líneas separadas.
+	for (int i = 0; i < d.nJugadores; i++) {
+		dJ << d.lista[i].ID << ' ' << d.lista[i].pGanadas << ' ' << d.lista[i].pPerdidas << endl;
+	}
+
+	dJ << "***";										//Y al final de todos los datos se añade un centinela.
+
+	dJ.close();											//Solo en caso de que se haya abierto el archivo, se cierra.
 }
