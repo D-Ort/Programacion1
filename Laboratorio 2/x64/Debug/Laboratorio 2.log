@@ -1,0 +1,7 @@
+﻿  Laboratorio 2.cpp
+C:\Users\dorte\OneDrive\Escritorio\Universidad\Primer cuatrimestre\Programación 1\Prácticas\Laboratorio 2\Laboratorio 2.cpp(41,12): warning C4244: 'argumento': conversión de 'time_t' a 'unsigned int'; posible pérdida de datos
+C:\Users\dorte\OneDrive\Escritorio\Universidad\Primer cuatrimestre\Programación 1\Prácticas\Laboratorio 2\Laboratorio 2.cpp(116,8): error C2143: error de sintaxis: falta ';' delante de ')'
+C:\Users\dorte\OneDrive\Escritorio\Universidad\Primer cuatrimestre\Programación 1\Prácticas\Laboratorio 2\Laboratorio 2.cpp(117,2): error C2143: error de sintaxis: falta ';' delante de '}'
+C:\Users\dorte\OneDrive\Escritorio\Universidad\Primer cuatrimestre\Programación 1\Prácticas\Laboratorio 2\Laboratorio 2.cpp(117,2): error C2143: error de sintaxis: falta ')' delante de '}'
+C:\Users\dorte\OneDrive\Escritorio\Universidad\Primer cuatrimestre\Programación 1\Prácticas\Laboratorio 2\Laboratorio 2.cpp(117,2): error C2059: error de sintaxis: '}'
+C:\Users\dorte\OneDrive\Escritorio\Universidad\Primer cuatrimestre\Programación 1\Prácticas\Laboratorio 2\Laboratorio 2.cpp(118,1): error C2059: error de sintaxis: '}'
